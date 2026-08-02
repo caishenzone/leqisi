@@ -1,11 +1,300 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>乐奇思</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>乐奇思 · 互动学习实验室</title>
+<link rel="icon" href="assets/images/logo.png" />
+<link rel="apple-touch-icon" href="assets/images/logo.png" />
+<style>
+  :root{
+    --ink:#1f2937;
+    --muted:#64748b;
+    --panel:#ffffff;
+    --line:#e8edf4;
+    --blue:#2563eb;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    background:linear-gradient(170deg,#eef4ff 0%,#f8fafc 40%,#fdf6ec 100%);
+    color:var(--ink); min-height:100vh;
+    padding:44px 20px 60px;
+    display:flex; flex-direction:column; align-items:center;
+  }
+
+  /* ---------- 页头 ---------- */
+  header{text-align:center; margin-bottom:24px; max-width:640px;}
+  .brand{
+    display:flex; align-items:center; justify-content:center; gap:14px;
+    margin-bottom:10px;
+  }
+  .brand img{
+    width:64px; height:64px; display:block;
+    filter:drop-shadow(0 3px 8px rgba(37,99,235,.18));
+    animation:logoIn .5s cubic-bezier(.34,1.5,.64,1) backwards;
+  }
+  @keyframes logoIn{
+    from{opacity:0; transform:scale(.7) rotate(-8deg);}
+    to{opacity:1; transform:scale(1);}
+  }
+  .logo{
+    font-size:34px; font-weight:900; letter-spacing:2px; margin:0;
+    background:linear-gradient(100deg,#2563eb,#e8590c 70%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .tagline{font-size:15px; color:var(--muted); line-height:1.75;}
+  .tagline b{color:#334155;}
+  .badges{display:flex; gap:8px; justify-content:center; margin-top:14px; flex-wrap:wrap;}
+  .badge{
+    font-size:12px; font-weight:700; padding:4px 12px; border-radius:999px;
+    background:#fff; border:1px solid var(--line); color:#475569;
+  }
+
+  /* ---------- 分类筛选 ---------- */
+  .filters{
+    display:flex; gap:9px; flex-wrap:wrap; justify-content:center;
+    margin-bottom:26px; padding:0; border:none;
+  }
+  .chip{
+    font-family:inherit; font-size:13.5px; font-weight:700; cursor:pointer;
+    padding:8px 16px; border-radius:999px;
+    background:#fff; border:1.5px solid var(--line); color:#475569;
+    display:inline-flex; align-items:center; gap:6px;
+    transition:transform .16s cubic-bezier(.34,1.4,.64,1), border-color .16s, background .16s, color .16s;
+  }
+  .chip:hover{border-color:#c7d5e8; transform:translateY(-2px);}
+  .chip:focus-visible{outline:3px solid var(--blue); outline-offset:2px;}
+  .chip .n{
+    font-size:11.5px; font-weight:800; min-width:19px; text-align:center;
+    padding:1px 5px; border-radius:999px; background:#f1f5f9; color:#64748b;
+  }
+  .chip[aria-pressed="true"]{
+    background:var(--blue); border-color:var(--blue); color:#fff;
+    box-shadow:0 4px 12px rgba(37,99,235,.28);
+  }
+  .chip[aria-pressed="true"] .n{background:rgba(255,255,255,.26); color:#fff;}
+
+  /* ---------- 卡片网格 ---------- */
+  .grid{
+    display:grid; gap:22px; width:100%; max-width:960px;
+    grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  }
+  .card{
+    display:flex; flex-direction:column;
+    background:var(--panel); border-radius:18px; overflow:hidden;
+    text-decoration:none; color:inherit;
+    border:1px solid var(--line);
+    box-shadow:0 4px 16px rgba(30,41,59,.06);
+    transition:transform .2s cubic-bezier(.34,1.4,.64,1), box-shadow .2s;
+  }
+  .card:hover{
+    transform:translateY(-6px);
+    box-shadow:0 16px 34px rgba(30,41,59,.14);
+  }
+  .card:hover .thumb img{transform:scale(1.05);}
+  .card:focus-visible{outline:3px solid var(--blue); outline-offset:3px;}
+  /* 筛选隐藏 / 入场 */
+  .card[hidden]{display:none;}
+  .card.enter{animation:cardIn .28s ease-out backwards;}
+  @keyframes cardIn{from{opacity:0; transform:translateY(10px) scale(.98);}to{opacity:1;}}
+
+  /* 缩略图：4 张截图宽高比不一（1.64~2.0），统一用 5/3 容器 + cover 裁切，
+     卡片高度才能对齐；否则窄屏单列时高度参差不齐 */
+  .thumb{
+    position:relative; aspect-ratio:5/3; overflow:hidden;
+    background:#eef2f7;
+  }
+  .thumb img{
+    width:100%; height:100%; display:block;
+    object-fit:cover; object-position:center top;
+    transition:transform .3s ease;
+  }
+  .tag{
+    position:absolute; top:10px; left:10px; z-index:2;
+    font-size:11px; font-weight:800; letter-spacing:.5px;
+    padding:4px 10px; border-radius:999px;
+    background:rgba(255,255,255,.92); color:#334155;
+    box-shadow:0 2px 6px rgba(0,0,0,.12);
+  }
+
+  .body{padding:15px 17px 17px; display:flex; flex-direction:column; flex:1;}
+  .card h2{font-size:17px; margin:0 0 7px; font-weight:800;}
+  .card p{font-size:13.5px; color:var(--muted); line-height:1.7; margin:0 0 12px; flex:1;}
+  .card p b{color:#475569;}
+  .meta{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    font-size:12px; color:#94a3b8; font-weight:600;
+    border-top:1px dashed var(--line); padding-top:10px;
+  }
+  .go{color:var(--blue); font-weight:800; white-space:nowrap;}
+  .card:hover .go{text-decoration:underline;}
+
+  .empty{
+    grid-column:1/-1; text-align:center; padding:46px 20px;
+    color:#94a3b8; font-size:14px; line-height:1.8;
+  }
+  .empty[hidden]{display:none;}
+
+  footer{
+    margin-top:40px; font-size:12.5px; color:#94a3b8; text-align:center; line-height:1.8;
+  }
+  .sr{
+    position:absolute; width:1px; height:1px; overflow:hidden;
+    clip:rect(0 0 0 0); white-space:nowrap;
+  }
+
+  @media (max-width:600px){
+    .brand{gap:10px;}
+    .brand img{width:48px; height:48px;}
+    .logo{font-size:27px;}
+    .tagline{font-size:14px;}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.01ms !important; transition-duration:.01ms !important;}
+  }
+</style>
 </head>
 <body>
-    <h1>乐奇思 2026</h1>
+
+<header>
+  <div class="brand">
+    <img src="assets/images/logo.webp" alt="乐奇思 logo" width="192" height="192" />
+    <h1 class="logo">乐奇思</h1>
+  </div>
+  <div class="tagline">
+    用可以动手玩的方式理解知识 —— <b>乐</b>在其中、<b>奇</b>在直观、<b>思</b>在追问。<br>
+    每个 Demo 都是单个 HTML 文件，点开就能玩，无需安装。
+  </div>
+  <div class="badges">
+    <span class="badge">🖐 可交互</span>
+    <span class="badge">📱 支持触屏</span>
+    <span class="badge">🔊 含音效</span>
+    <span class="badge">📦 零依赖</span>
+  </div>
+</header>
+
+<!-- ========== 分类筛选 ========== -->
+<div class="filters" id="filters" role="group" aria-label="按分类筛选">
+  <button class="chip" data-cat="all"     aria-pressed="true">全部 <span class="n"></span></button>
+  <button class="chip" data-cat="math"    aria-pressed="false">🔢 数学 <span class="n"></span></button>
+  <button class="chip" data-cat="physics" aria-pressed="false">⚙️ 物理 <span class="n"></span></button>
+  <button class="chip" data-cat="anim"    aria-pressed="false">🎬 动画 <span class="n"></span></button>
+</div>
+<p class="sr" id="live" aria-live="polite"></p>
+
+<main class="grid" id="grid">
+
+  <!-- ========== 1. 魔法水果摊 ========== -->
+  <a class="card" data-cat="math" href="html/magic-fruit-stand.html">
+    <div class="thumb">
+      <span class="tag">一年级数学</span>
+      <img src="html/magic-fruit-stand.webp" alt="魔法水果摊：数字卡片与装着苹果的果篮" width="1000" height="608" loading="lazy" decoding="async" />
+    </div>
+    <div class="body">
+      <h2>🍉 魔法水果摊</h2>
+      <p>把数字卡片拖进果篮，立刻蹦出对应数量的水果，伴随逐个升调的计数声。点掉一个水果就看到 <b>3 − 1 = 2</b>；开启「小顾客点单」还要先数点子再选卡片。</p>
+      <div class="meta"><span>数与量的对应 · 5 以内加减法</span><span class="go">开始玩 →</span></div>
+    </div>
+  </a>
+
+  <!-- ========== 2. 杠杆平衡 ========== -->
+  <a class="card" data-cat="physics" href="html/lever-demo.html">
+    <div class="thumb">
+      <span class="tag">物理 · 力学</span>
+      <img src="html/lever-demo.webp" alt="杠杆平衡：横梁两侧放置砝码的交互界面" width="959" height="569" loading="lazy" decoding="async" />
+    </div>
+    <div class="body">
+      <h2>⚖️ 杠杆平衡</h2>
+      <p>在刻度上放砝码，横梁会真实地倾斜或摆回水平。改变重量和距离，亲手试出「离支点越远、越省力」，从而理解 <b>重量 × 距离</b> 的力矩关系。内置多组平衡解法可一键对照。</p>
+      <div class="meta"><span>杠杆原理 · 力矩与平衡</span><span class="go">开始玩 →</span></div>
+    </div>
+  </a>
+
+  <!-- ========== 3. 自行车齿轮比 ========== -->
+  <a class="card" data-cat="physics" href="html/gear-ratio.html">
+    <div class="thumb">
+      <span class="tag">物理 · 机械</span>
+      <img src="html/gear-ratio.webp" alt="自行车齿轮比：前后齿轮与链条的可视化" width="1000" height="596" loading="lazy" decoding="async" />
+    </div>
+    <div class="body">
+      <h2>🚲 自行车齿轮比</h2>
+      <p>拖动滑块改前后齿轮的齿数，齿轮跟着变大变小、链条自动贴合，两轮转速实时联动。直观看懂为什么换挡能<b>省力</b>或<b>提速</b>，以及脚踏一圈能骑多远。</p>
+      <div class="meta"><span>齿轮传动比 · 转速与距离</span><span class="go">开始玩 →</span></div>
+    </div>
+  </a>
+
+  <!-- ========== 4. 小白兔回家 ========== -->
+  <a class="card" data-cat="anim" href="html/bunny-home.html">
+    <div class="thumb">
+      <span class="tag">像素动画</span>
+      <img src="html/bunny-home.webp" alt="小白兔回家：Minecraft 像素风横版场景" width="1000" height="499" loading="lazy" decoding="async" />
+    </div>
+    <div class="body">
+      <h2>🐰 小白兔回家</h2>
+      <p>Minecraft 像素风横版动画：小白兔一路跳跃、吃胡萝卜、躲避苦力怕，天色从清晨渐变到夜晚，最后推门进屋点亮灯光。按<b>空格</b>或点画面让它跳得更高。</p>
+      <div class="meta"><span>纯 CSS 像素艺术 · 视差动画</span><span class="go">开始看 →</span></div>
+    </div>
+  </a>
+
+  <p class="empty" id="empty" hidden>这个分类下还没有 Demo，换一个看看吧 🙂</p>
+</main>
+
+<footer>
+  乐奇思 2026 · 全部 Demo 为纯 HTML + CSS + JavaScript，无框架、无构建、无外部依赖<br>
+  建议在电脑或平板的现代浏览器中体验
+</footer>
+
+<script>
+(function(){
+  const cards   = [...document.querySelectorAll('.card')];
+  const chips   = [...document.querySelectorAll('.chip')];
+  const empty   = document.getElementById('empty');
+  const live    = document.getElementById('live');
+
+  /* 计数直接从 DOM 统计，加卡片时不用改这里 */
+  chips.forEach(chip => {
+    const cat = chip.dataset.cat;
+    const n = cat === 'all' ? cards.length : cards.filter(c => c.dataset.cat === cat).length;
+    chip.querySelector('.n').textContent = n;
+  });
+
+  function apply(cat, animate){
+    let shown = 0;
+    cards.forEach(card => {
+      const hit = cat === 'all' || card.dataset.cat === cat;
+      card.hidden = !hit;
+      card.classList.remove('enter');
+      if(hit){
+        if(animate){
+          card.style.animationDelay = (shown * 45) + 'ms';
+          void card.offsetWidth;      // 重启动画
+          card.classList.add('enter');
+        }
+        shown++;
+      }
+    });
+    empty.hidden = shown > 0;
+    chips.forEach(c => c.setAttribute('aria-pressed', String(c.dataset.cat === cat)));
+    live.textContent = `已显示 ${shown} 个 Demo`;
+    /* 记在 hash 里，刷新和分享都保持当前分类 */
+    const target = cat === 'all' ? ' ' : '#' + cat;
+    if(location.hash.slice(1) !== cat && !(cat === 'all' && !location.hash)){
+      history.replaceState(null, '', cat === 'all' ? location.pathname : target);
+    }
+  }
+
+  chips.forEach(chip => {
+    chip.addEventListener('click', () => apply(chip.dataset.cat, true));
+  });
+
+  /* 支持直接用 index.html#physics 打开 */
+  const known = chips.map(c => c.dataset.cat);
+  const init = known.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'all';
+  apply(init, false);
+})();
+</script>
+
 </body>
 </html>

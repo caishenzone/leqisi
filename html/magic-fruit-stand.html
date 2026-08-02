@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>魔法水果摊 · 数与量的对应</title>
+<style>
+  :root{
+    --ink:#2b2118;
+    --wood:#c98a4b;
+    --wood-d:#a86c33;
+    --card:#fff8ec;
+    --num:#e8590c;
+    --green:#2f9e44;
+    --panel:#fffdf8;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    background:radial-gradient(120% 100% at 50% 0%,#fff4d6 0%,#ffe9c7 45%,#ffdcae 100%);
+    color:var(--ink); min-height:100vh;
+    display:flex; flex-direction:column; align-items:center;
+    padding:16px 12px 28px; user-select:none; -webkit-user-select:none;
+    touch-action:manipulation;
+  }
+  h1{font-size:22px; margin:0 0 4px; font-weight:800; letter-spacing:.5px;}
+  .sub{font-size:13px; color:#8a6a44; margin-bottom:12px;}
+
+  /* ---------- 工具栏 ---------- */
+  .toolbar{
+    display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center;
+    background:var(--panel); padding:9px 14px; border-radius:16px;
+    box-shadow:0 6px 18px rgba(120,80,30,.14); margin-bottom:14px;
+  }
+  .tlabel{font-size:13px; color:#8a6a44; font-weight:700;}
+  .fbtn{
+    width:42px; height:42px; border-radius:12px; border:2px solid #f0e2cc;
+    background:#fff; font-size:22px; cursor:pointer; transition:.15s; line-height:1;
+  }
+  .fbtn:hover{border-color:#e0c9a6; transform:translateY(-2px);}
+  .fbtn.active{border-color:var(--num); background:#fff4ec; box-shadow:0 0 0 3px rgba(232,89,12,.16);}
+  .act{
+    padding:9px 14px; border-radius:11px; border:none; cursor:pointer;
+    font-size:13.5px; font-weight:700; background:#7c5230; color:#fff; transition:.15s;
+    font-family:inherit;
+  }
+  .act:hover{background:#5f3d22;}
+  .act.ghost{background:#f4ead9; color:#7c5230;}
+  .act.on{background:var(--green);}
+  .stars{font-size:15px; font-weight:800; color:#b8730f; min-width:52px; text-align:center;}
+
+  /* ---------- 舞台 ---------- */
+  .stage{
+    position:relative; width:min(920px,100%);
+    display:flex; gap:18px; align-items:stretch; justify-content:center;
+    flex-wrap:wrap;
+  }
+
+  /* 数字卡片区 */
+  .cards-panel{
+    background:var(--panel); border-radius:20px; padding:14px 12px;
+    box-shadow:0 8px 22px rgba(120,80,30,.13);
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+  }
+  .cards-panel .cap{font-size:12.5px; color:#8a6a44; font-weight:700;}
+  .cards{display:flex; flex-direction:column; gap:9px;}
+  .card{
+    width:82px; height:76px; border-radius:14px;
+    background:linear-gradient(165deg,#fffdf7,var(--card));
+    border:3px solid #f0dcbe;
+    box-shadow:0 4px 0 #e6d2b2, 0 8px 16px rgba(150,100,40,.12);
+    display:flex; align-items:center; justify-content:center;
+    font-size:40px; font-weight:900; color:var(--num);
+    cursor:grab; touch-action:none; position:relative;
+    transition:transform .14s ease, box-shadow .14s ease, border-color .14s;
+  }
+  .card:hover{transform:translateY(-3px) rotate(-2deg);}
+  .card:active{cursor:grabbing;}
+  .card.picked{opacity:.35;}
+  .card.active{
+    border-color:var(--num); background:linear-gradient(165deg,#fff3e6,#ffe4cc);
+    box-shadow:0 0 0 4px rgba(232,89,12,.2), 0 4px 0 #f0b183;
+    transform:scale(1.06);
+  }
+  .card .dots{
+    position:absolute; bottom:5px; left:0; right:0;
+    display:flex; gap:3px; justify-content:center;
+  }
+  .card .dots i{width:6px; height:6px; border-radius:50%; background:#f7bf95;}
+  .card.active .dots i{background:var(--num);}
+  /* 拖动中的幽灵卡片（注意：类名不能叫 .ghost，会和工具栏 .act.ghost 撞车） */
+  .drag-ghost{
+    position:fixed; z-index:99; pointer-events:none; margin:0;
+    transform:scale(1.12) rotate(-6deg);
+    box-shadow:0 14px 26px rgba(120,60,10,.32);
+    opacity:.96;
+  }
+
+  /* 摊位 */
+  .stand{
+    position:relative; flex:1 1 460px; min-width:380px;
+    background:var(--panel); border-radius:20px;
+    box-shadow:0 8px 22px rgba(120,80,30,.13);
+    padding:0 0 14px; overflow:hidden;
+    display:flex; flex-direction:column; align-items:center;
+  }
+  /* 遮阳篷 */
+  .awning{
+    width:100%; height:34px;
+    background:repeating-linear-gradient(90deg,#e8590c 0 26px,#fff3e0 26px 52px);
+    box-shadow:inset 0 -6px 10px rgba(0,0,0,.12);
+    border-radius:0 0 10px 10px;
+    position:relative;
+  }
+  .awning::after{
+    content:""; position:absolute; left:0; right:0; bottom:-9px; height:10px;
+    background:repeating-linear-gradient(90deg,#e8590c 0 26px,#fff3e0 26px 52px);
+    clip-path:polygon(0 0,100% 0,100% 0,96% 100%,88% 0,80% 100%,72% 0,64% 100%,56% 0,48% 100%,40% 0,32% 100%,24% 0,16% 100%,8% 0,4% 100%,0 0);
+  }
+  .sign{
+    margin:16px 0 4px; font-size:14px; font-weight:800; color:#7c5230;
+    background:#f7e6c9; border:2px dashed #dcbf95; border-radius:999px;
+    padding:4px 16px;
+  }
+  /* 顾客点单条 */
+  .order{
+    margin:8px 10px 0; min-height:44px; width:calc(100% - 20px);
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    font-size:14px; font-weight:700; color:#5a4028;
+    background:#fff6e6; border:2px solid #f2e0c2; border-radius:14px;
+    padding:8px 12px; text-align:center; line-height:1.5;
+  }
+  .order.hide{display:none;}
+  .order .who{font-size:26px;}
+  .order .dotrow{display:flex; gap:6px;}
+  .order .dotrow i{
+    width:15px; height:15px; border-radius:50%; background:var(--num);
+    box-shadow:inset 0 -3px 0 rgba(0,0,0,.12);
+    animation:dotIn .35s backwards cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes dotIn{from{transform:scale(0)}to{transform:scale(1)}}
+  .order.wrong{animation:shake .4s;}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+
+  /* 果篮 */
+  .basket-wrap{
+    position:relative; margin-top:10px; padding:14px 22px 6px;
+    border-radius:20px; transition:.18s;
+  }
+  .basket-wrap.over{background:rgba(47,158,68,.12); box-shadow:0 0 0 3px rgba(47,158,68,.4);}
+  .basket{position:relative; width:340px; height:158px;}
+  .handle{
+    position:absolute; left:50%; top:0; width:186px; height:56px;
+    transform:translateX(-50%);
+    border:10px solid var(--wood-d); border-bottom:none;
+    border-radius:190px 190px 0 0; box-sizing:border-box;
+    z-index:1;
+  }
+  .heap{position:absolute; left:16px; right:16px; bottom:0; height:132px; z-index:2;}
+  /* 计数数字要盖在篮身之上，所以单独一层（子元素 z-index 无法越出 .heap 的堆叠上下文） */
+  .numlayer{position:absolute; left:16px; right:16px; bottom:0; height:150px; z-index:7; pointer-events:none;}
+  .fruit{
+    position:absolute; font-size:38px; line-height:1;
+    transform:translate(-50%,0); cursor:pointer;
+    transition:left .3s ease, bottom .3s ease;
+    animation:pop .5s cubic-bezier(.34,1.56,.64,1);
+    filter:drop-shadow(0 3px 3px rgba(90,50,10,.3));
+  }
+  @keyframes pop{
+    0%{transform:translate(-50%,-110px) scale(.3) rotate(-25deg); opacity:0;}
+    60%{transform:translate(-50%,6px) scale(1.18) rotate(6deg); opacity:1;}
+    100%{transform:translate(-50%,0) scale(1) rotate(0);}
+  }
+  .fruit:hover{filter:drop-shadow(0 3px 3px rgba(90,50,10,.3)) brightness(1.1);}
+  .fruit.eaten{animation:eat .45s ease-out forwards; pointer-events:none;}
+  @keyframes eat{
+    0%{transform:translate(-50%,0) scale(1);}
+    35%{transform:translate(-50%,-14px) scale(1.3) rotate(12deg);}
+    100%{transform:translate(-50%,-46px) scale(.2) rotate(40deg); opacity:0;}
+  }
+  .fruit.blink{animation:blink .34s ease-out;}
+  @keyframes blink{0%,100%{transform:translate(-50%,0) scale(1)}50%{transform:translate(-50%,-12px) scale(1.32)}}
+  /* 篮身：盖住水果下半，营造"在篮子里" */
+  .weave{
+    position:absolute; left:0; right:0; bottom:0; height:74px; z-index:3;
+    background:
+      repeating-linear-gradient(90deg,rgba(0,0,0,.10) 0 3px,transparent 3px 20px),
+      repeating-linear-gradient(0deg,var(--wood) 0 12px,var(--wood-d) 12px 24px);
+    clip-path:polygon(2% 0,98% 0,88% 100%,12% 100%);
+    border-radius:0 0 16px 16px;
+    box-shadow:inset 0 8px 14px rgba(0,0,0,.16);
+  }
+  .rim{
+    position:absolute; left:-5px; right:-5px; bottom:66px; height:20px; z-index:4;
+    background:linear-gradient(#e0a566,var(--wood-d));
+    border-radius:12px;
+    box-shadow:0 4px 8px rgba(90,50,10,.25), inset 0 2px 0 rgba(255,255,255,.35);
+  }
+
+  /* 计数浮字 */
+  .cnum{
+    position:absolute; font-size:23px; font-weight:900; color:var(--num);
+    text-shadow:0 2px 0 #fff, 0 0 10px rgba(255,255,255,.9);
+    pointer-events:none; transform:translate(-50%,0);
+    animation:floatUp .9s ease-out forwards;
+  }
+  @keyframes floatUp{
+    0%{opacity:0; transform:translate(-50%,10px) scale(.6);}
+    25%{opacity:1; transform:translate(-50%,-8px) scale(1.15);}
+    100%{opacity:0; transform:translate(-50%,-58px) scale(1);}
+  }
+
+  /* 结果标签 */
+  .result{
+    margin-top:2px; font-size:26px; font-weight:900; color:#7c5230;
+    min-height:38px; display:flex; align-items:center; gap:8px;
+  }
+  .result .big{color:var(--num); font-size:34px;}
+  .result.bump{animation:bump .45s cubic-bezier(.34,1.56,.64,1);}
+  @keyframes bump{0%{transform:scale(.7)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+  .eq{font-size:20px; color:var(--green); font-weight:800;}
+
+  .hint{
+    margin-top:10px; font-size:13px; color:#8a6a44; text-align:center;
+    line-height:1.7; max-width:420px;
+  }
+  .hint b{color:#7c5230;}
+
+  /* 撒花粒子 */
+  #fx{position:fixed; inset:0; pointer-events:none; z-index:80;}
+  #fx span{position:absolute; font-size:20px; will-change:transform;}
+
+  @media (max-width:760px){
+    .stage{flex-direction:column; align-items:center;}
+    .cards-panel{width:min(420px,100%);}
+    .cards{flex-direction:row; justify-content:center; flex-wrap:wrap;}
+    .card{width:64px; height:64px; font-size:32px;}
+    .stand{min-width:0; width:100%;}
+    .basket{width:min(340px,100%);}
+    .fruit{font-size:32px;}
+  }
+</style>
+</head>
+<body>
+
+<h1>🍉 魔法水果摊</h1>
+<div class="sub">把数字卡片拖到果篮里 · 看看会变出多少水果</div>
+
+<div class="toolbar">
+  <span class="tlabel">选水果</span>
+  <button class="fbtn active" data-f="apple">🍎</button>
+  <button class="fbtn" data-f="banana">🍌</button>
+  <button class="fbtn" data-f="strawberry">🍓</button>
+  <button class="fbtn" data-f="orange">🍊</button>
+  <button class="fbtn" data-f="grape">🍇</button>
+  <button class="act ghost" id="btnCount">👉 数一数</button>
+  <button class="act ghost" id="btnClear">🧺 倒空</button>
+  <button class="act" id="btnOrder">🐰 小顾客来啦</button>
+  <span class="stars" id="starBox">⭐ 0</span>
+  <button class="act ghost" id="btnSound">🔊 声音</button>
+</div>
+
+<div class="stage">
+  <div class="cards-panel">
+    <div class="cap">数字卡片</div>
+    <div class="cards" id="cards"></div>
+  </div>
+
+  <div class="stand">
+    <div class="awning"></div>
+    <div class="sign">🍎 魔法果篮 · 1 到 5</div>
+
+    <div class="order hide" id="order"></div>
+
+    <div class="basket-wrap" id="dropzone">
+      <div class="basket">
+        <div class="handle"></div>
+        <div class="heap" id="heap"></div>
+        <div class="weave"></div>
+        <div class="rim"></div>
+        <div class="numlayer" id="numlayer"></div>
+      </div>
+    </div>
+
+    <div class="result" id="result">篮子是空的</div>
+    <div class="hint" id="hint">
+      拖一张卡片试试 —— 为什么 <b>5</b> 会变出 5 个水果？<br>
+      点一下篮子里的水果，可以<b>吃掉一个</b>看看还剩几个。
+    </div>
+  </div>
+</div>
+
+<div id="fx"></div>
+
+<script>
+/* ================= 数据 ================= */
+const FRUITS = {
+  apple:      { e:'🍎', n:'苹果' },
+  banana:     { e:'🍌', n:'香蕉' },
+  strawberry: { e:'🍓', n:'草莓' },
+  orange:     { e:'🍊', n:'橘子' },
+  grape:      { e:'🍇', n:'葡萄' }
+};
+/* 水果在篮口的摆放位置（left%, bottom px）
+   篮身 .weave 高 74px、篮沿 .rim 在 66~86px；
+   水果 bottom 取 74 左右，下半截被篮沿挡住＝"在篮子里"。
+   1~5 全部排成一行，从左到右——对应一年级"点数"的教法。 */
+const LAYOUT = {
+  1: [[50,76]],
+  2: [[33,76],[67,74]],
+  3: [[22,74],[50,78],[78,74]],
+  4: [[16,74],[39,78],[62,78],[85,74]],
+  5: [[12,74],[31,78],[50,80],[69,78],[88,74]]
+};
+const MAX = 5;
+/* 计数音阶 C5→G5 */
+const SCALE = [523.25, 587.33, 659.25, 698.46, 783.99];
+
+/* ================= 状态 ================= */
+const $ = s => document.querySelector(s);
+const heap = $('#heap'), result = $('#result'), dropzone = $('#dropzone');
+const numlayer = $('#numlayer');
+const orderBox = $('#order'), hint = $('#hint'), fx = $('#fx');
+
+let fruit = 'apple';
+let count = 0;              // 篮子里的水果数
+let soundOn = true;
+let orderMode = false;
+let orderWant = 0;          // 当前订单要的数量
+let stars = 0;
+let timers = [];            // 逐个投放的定时器
+let busy = false;           // 动画进行中，避免打断
+
+/* ================= 音效 ================= */
+let actx = null;
+function tone(freq, dur, type='triangle', vol=.16, delay=0){
+  if(!soundOn) return;
+  try{
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if(actx.state === 'suspended') actx.resume();
+    const t0 = actx.currentTime + delay;
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t0);
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(vol, t0 + .012);
+    g.gain.exponentialRampToValueAtTime(.0001, t0 + dur);
+    o.connect(g).connect(actx.destination);
+    o.start(t0); o.stop(t0 + dur + .02);
+  }catch(e){}
+}
+const sfxCount = i => tone(SCALE[Math.min(i, 4)], .22, 'triangle', .18);
+const sfxDone  = () => { tone(783.99,.16,'triangle',.14,0); tone(1046.5,.30,'triangle',.14,.12); };
+const sfxEat   = () => { tone(300,.10,'square',.10); tone(180,.16,'square',.09,.08); };
+const sfxWrong = () => { tone(233,.16,'sine',.12); tone(196,.22,'sine',.11,.14); };
+const sfxPick  = () => tone(880,.07,'sine',.10);
+
+/* ================= 建卡片 ================= */
+const cardsBox = $('#cards');
+for(let n=1; n<=MAX; n++){
+  const c = document.createElement('div');
+  c.className = 'card';
+  c.dataset.n = n;
+  c.tabIndex = 0;
+  c.innerHTML = `<span>${n}</span><span class="dots">${'<i></i>'.repeat(n)}</span>`;
+  cardsBox.appendChild(c);
+  c.addEventListener('pointerdown', onDragStart);
+  c.addEventListener('keydown', ev => {
+    if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); play(n); }
+  });
+}
+const allCards = () => [...document.querySelectorAll('.card')];
+
+/* ================= 拖拽 ================= */
+function onDragStart(e){
+  if(busy) return;
+  e.preventDefault();
+  const card = e.currentTarget;
+  const n = +card.dataset.n;
+  const r = card.getBoundingClientRect();
+  const ox = e.clientX - r.left, oy = e.clientY - r.top;
+  const startX = e.clientX, startY = e.clientY;
+  let moved = false;
+
+  const ghost = card.cloneNode(true);
+  ghost.classList.add('drag-ghost');
+  ghost.classList.remove('active');
+  ghost.style.width = r.width + 'px';
+  ghost.style.height = r.height + 'px';
+  ghost.style.left = r.left + 'px';
+  ghost.style.top = r.top + 'px';
+  document.body.appendChild(ghost);
+  card.classList.add('picked');
+  sfxPick();
+
+  const inZone = ev => {
+    const b = dropzone.getBoundingClientRect();
+    const pad = 30;
+    return ev.clientX > b.left - pad && ev.clientX < b.right + pad &&
+           ev.clientY > b.top - pad  && ev.clientY < b.bottom + pad;
+  };
+
+  const onMove = ev => {
+    if(Math.abs(ev.clientX - startX) > 4 || Math.abs(ev.clientY - startY) > 4) moved = true;
+    ghost.style.left = (ev.clientX - ox) + 'px';
+    ghost.style.top  = (ev.clientY - oy) + 'px';
+    dropzone.classList.toggle('over', inZone(ev));
+  };
+  const onUp = ev => {
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('pointercancel', onUp);
+    dropzone.classList.remove('over');
+    card.classList.remove('picked');
+    const hit = inZone(ev);
+    if(hit){
+      // 幽灵卡片吸进篮子
+      const b = dropzone.getBoundingClientRect();
+      ghost.style.transition = 'all .25s ease-in';
+      ghost.style.left = (b.left + b.width/2 - r.width/2) + 'px';
+      ghost.style.top  = (b.top + b.height/2 - r.height/2) + 'px';
+      ghost.style.transform = 'scale(.3) rotate(10deg)';
+      ghost.style.opacity = '0';
+      setTimeout(() => ghost.remove(), 260);
+      play(n);
+    }else{
+      // 没落到篮子：飞回原位；若几乎没动，当作"点击"也算投放
+      ghost.style.transition = 'all .22s ease-out';
+      ghost.style.left = r.left + 'px';
+      ghost.style.top = r.top + 'px';
+      ghost.style.transform = 'scale(1)';
+      setTimeout(() => ghost.remove(), 230);
+      if(!moved) play(n);
+    }
+  };
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+  window.addEventListener('pointercancel', onUp);
+}
+
+/* ================= 核心：投放 n 个水果 ================= */
+function play(n){
+  if(busy) return;
+  clearTimers();
+  heap.innerHTML = ''; numlayer.innerHTML = '';
+  count = 0;
+  busy = true;
+  allCards().forEach(c => c.classList.toggle('active', +c.dataset.n === n));
+  const f = FRUITS[fruit];
+  result.innerHTML = `正在变出 <span class="big">${n}</span> 个${f.n}…`;
+
+  for(let i = 0; i < n; i++){
+    timers.push(setTimeout(() => {
+      addFruit(i, n);
+      count = i + 1;
+      sfxCount(i);
+      floatNum(i, n, i + 1);
+      result.innerHTML = `<span class="big">${count}</span> 个${f.n}`;
+      result.classList.remove('bump'); void result.offsetWidth; result.classList.add('bump');
+      if(i === n - 1) timers.push(setTimeout(() => finish(n), 340));
+    }, i * 320));
+  }
+}
+
+function addFruit(i, n){
+  const [x, y] = LAYOUT[n][i];
+  const el = document.createElement('div');
+  el.className = 'fruit';
+  el.textContent = FRUITS[fruit].e;
+  el.style.left = x + '%';
+  el.style.bottom = y + 'px';
+  el.addEventListener('click', () => eatOne(el));
+  heap.appendChild(el);
+}
+
+function floatNum(i, n, text){
+  const [x, y] = LAYOUT[n][i];
+  const s = document.createElement('div');
+  s.className = 'cnum';
+  s.textContent = text;
+  s.style.left = x + '%';
+  s.style.bottom = (y + 36) + 'px';
+  numlayer.appendChild(s);
+  setTimeout(() => s.remove(), 900);
+}
+
+function finish(n){
+  busy = false;
+  const f = FRUITS[fruit];
+  result.innerHTML = `<span class="big">${n}</span> 个${f.n} ${f.e}`;
+  sfxDone();
+  if(orderMode){
+    if(n === orderWant){
+      stars++; $('#starBox').textContent = '⭐ ' + stars;
+      confetti();
+      orderBox.innerHTML = `<span class="who">🐰</span><span>太棒了！正好 <b>${orderWant}</b> 个${f.n}，谢谢你！</span>`;
+      tone(1174.7,.28,'triangle',.14,.18);
+      setTimeout(() => { if(orderMode) newOrder(); }, 1600);
+    }else{
+      orderBox.classList.remove('wrong'); void orderBox.offsetWidth; orderBox.classList.add('wrong');
+      sfxWrong();
+      const tip = orderBox.querySelector('.tip');
+      if(tip) tip.textContent = `我要的不是 ${n} 个，再数一数点子吧～`;
+    }
+  }else{
+    hint.innerHTML = `数字 <b>${n}</b> 就是 <b>${n}</b> 个 —— 一个一个数：${
+      Array.from({length:n},(_,k)=>k+1).join('、')}。<br>点一下水果可以<b>吃掉一个</b>试试。`;
+  }
+}
+
+/* ================= 吃掉一个（减法入口） ================= */
+function eatOne(el){
+  if(busy || count === 0) return;
+  const before = count;
+  busy = true;
+  el.classList.add('eaten');
+  sfxEat();
+  setTimeout(() => {
+    el.remove();
+    count = before - 1;
+    relayout();
+    const f = FRUITS[fruit];
+    if(count === 0){
+      result.innerHTML = `<span class="eq">${before} − 1 = 0</span> 篮子空了`;
+    }else{
+      result.innerHTML = `<span class="big">${count}</span> 个${f.n} <span class="eq">${before} − 1 = ${count}</span>`;
+    }
+    result.classList.remove('bump'); void result.offsetWidth; result.classList.add('bump');
+    allCards().forEach(c => c.classList.toggle('active', +c.dataset.n === count));
+    hint.innerHTML = `吃掉 1 个，从 <b>${before}</b> 变成 <b>${count}</b>。少 1 个，就往前数一格。`;
+    busy = false;
+    if(orderMode) checkOrderAfterEat();
+  }, 430);
+}
+
+function checkOrderAfterEat(){
+  if(count === orderWant && count > 0){
+    stars++; $('#starBox').textContent = '⭐ ' + stars;
+    confetti();
+    orderBox.innerHTML = `<span class="who">🐰</span><span>对啦！正好 <b>${orderWant}</b> 个，谢谢你！</span>`;
+    setTimeout(() => { if(orderMode) newOrder(); }, 1600);
+  }
+}
+
+/* 吃掉后按新数量重新排位 */
+function relayout(){
+  const list = [...heap.querySelectorAll('.fruit')];
+  if(!list.length || !LAYOUT[list.length]) return;
+  LAYOUT[list.length].forEach(([x, y], i) => {
+    list[i].style.left = x + '%';
+    list[i].style.bottom = y + 'px';
+  });
+}
+
+/* ================= 数一数（重播点数） ================= */
+$('#btnCount').addEventListener('click', () => {
+  if(busy) return;
+  const list = [...heap.querySelectorAll('.fruit')];
+  if(!list.length){ result.textContent = '篮子是空的，先拖一张卡片吧'; sfxWrong(); return; }
+  busy = true;
+  clearTimers();
+  const f = FRUITS[fruit];
+  list.forEach((el, i) => {
+    timers.push(setTimeout(() => {
+      el.classList.remove('blink'); void el.offsetWidth; el.classList.add('blink');
+      sfxCount(i);
+      floatNum(i, list.length, i + 1);
+      result.innerHTML = `数到 <span class="big">${i + 1}</span>`;
+      if(i === list.length - 1){
+        timers.push(setTimeout(() => {
+          result.innerHTML = `一共 <span class="big">${list.length}</span> 个${f.n}`;
+          result.classList.remove('bump'); void result.offsetWidth; result.classList.add('bump');
+          sfxDone(); busy = false;
+        }, 420));
+      }
+    }, i * 480));
+  });
+});
+
+/* ================= 倒空 ================= */
+$('#btnClear').addEventListener('click', () => {
+  clearTimers(); busy = false;
+  heap.innerHTML = ''; numlayer.innerHTML = ''; count = 0;
+  allCards().forEach(c => c.classList.remove('active'));
+  result.textContent = '篮子是空的';
+  hint.innerHTML = '拖一张卡片试试 —— 为什么 <b>5</b> 会变出 5 个水果？';
+  tone(392,.12,'sine',.10);
+});
+
+function clearTimers(){ timers.forEach(clearTimeout); timers = []; }
+
+/* ================= 换水果 ================= */
+document.querySelectorAll('.fbtn').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.fbtn').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    fruit = b.dataset.f;
+    tone(659,.09,'sine',.10);
+    // 篮子里已有水果 → 原地变身，数量不变
+    const list = [...heap.querySelectorAll('.fruit')];
+    list.forEach(el => { el.textContent = FRUITS[fruit].e; });
+    if(list.length) result.innerHTML = `<span class="big">${list.length}</span> 个${FRUITS[fruit].n}`;
+    if(orderMode) renderOrder();
+  });
+});
+
+/* ================= 小顾客点单 ================= */
+$('#btnOrder').addEventListener('click', () => {
+  orderMode = !orderMode;
+  const btn = $('#btnOrder');
+  btn.classList.toggle('on', orderMode);
+  btn.textContent = orderMode ? '🐰 结束点单' : '🐰 小顾客来啦';
+  orderBox.classList.toggle('hide', !orderMode);
+  if(orderMode){ newOrder(); }
+  else{ hint.innerHTML = '自由玩玩吧 —— 拖一张卡片，看看变出几个水果。'; }
+});
+
+function newOrder(){
+  let n;
+  do { n = 1 + Math.floor(Math.random() * MAX); } while(n === orderWant && MAX > 1);
+  orderWant = n;
+  renderOrder();
+  tone(880,.10,'sine',.10); tone(1046,.14,'sine',.10,.10);
+  hint.innerHTML = '先数一数小顾客说了几个点子，再把对应的<b>数字卡片</b>拖到篮子里。';
+}
+function renderOrder(){
+  orderBox.innerHTML =
+    `<span class="who">🐰</span><span>我要 </span>` +
+    `<span class="dotrow">${Array.from({length:orderWant},(_,i)=>
+      `<i style="animation-delay:${i*.08}s"></i>`).join('')}</span>` +
+    `<span> 个${FRUITS[fruit].n}</span><span class="tip" style="color:#b8730f;font-weight:700"></span>`;
+}
+
+/* ================= 声音开关 ================= */
+$('#btnSound').addEventListener('click', () => {
+  soundOn = !soundOn;
+  const b = $('#btnSound');
+  b.textContent = soundOn ? '🔊 声音' : '🔇 静音';
+  if(soundOn) tone(880,.10,'sine',.12);
+});
+
+/* ================= 撒花 ================= */
+function confetti(){
+  const r = dropzone.getBoundingClientRect();
+  const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  const emo = ['⭐','🎉','✨','🌟','🍬'];
+  for(let i = 0; i < 18; i++){
+    const s = document.createElement('span');
+    s.textContent = emo[i % emo.length];
+    s.style.left = cx + 'px'; s.style.top = cy + 'px';
+    fx.appendChild(s);
+    const ang = -Math.PI/2 + (Math.random() - .5) * 2.2;
+    const sp = 220 + Math.random() * 260;
+    let vx = Math.cos(ang) * sp, vy = Math.sin(ang) * sp;
+    let x = 0, y = 0, life = 0;
+    const t0 = performance.now();
+    (function step(now){
+      const dt = Math.min((now - t0) / 1000 - life, .05);
+      life += dt;
+      vy += 900 * dt;
+      x += vx * dt; y += vy * dt;
+      s.style.transform = `translate(${x}px,${y}px) rotate(${x * 1.6}deg)`;
+      s.style.opacity = Math.max(0, 1 - life / 1.3);
+      if(life < 1.3) requestAnimationFrame(step); else s.remove();
+    })(t0);
+  }
+}
+</script>
+</body>
+</html>

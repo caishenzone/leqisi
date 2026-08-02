@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>杠杆平衡 · 交互教学 Demo</title>
+<style>
+  :root{
+    --left:#2563EB;      /* 左：青蓝 */
+    --right:#F76707;     /* 右：橙红 */
+    --beam:#F2B705;      /* 横梁黄 */
+    --ink:#1f2937;
+    --panel:#ffffff;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    background:linear-gradient(160deg,#eef2ff 0%,#f8fafc 60%); color:var(--ink);
+    min-height:100vh; display:flex; flex-direction:column; align-items:center;
+    padding:18px 12px 150px;
+  }
+  h1{font-size:20px; margin:0 0 4px; font-weight:700;}
+  .sub{font-size:13px; color:#64748b; margin-bottom:14px;}
+
+  /* 控制栏 */
+  .toolbar{
+    display:flex; gap:14px; align-items:center; flex-wrap:wrap; justify-content:center;
+    background:var(--panel); padding:12px 18px; border-radius:14px;
+    box-shadow:0 6px 20px rgba(30,41,59,.08); margin-bottom:16px;
+  }
+  .group{display:flex; align-items:center; gap:8px;}
+  .group .label{font-size:13px; color:#475569; font-weight:600;}
+  .wbtn{
+    width:42px; height:42px; border-radius:12px; border:2px solid #e2e8f0;
+    background:#fff; font-size:18px; font-weight:700; cursor:pointer; color:var(--ink);
+    transition:all .15s ease;
+  }
+  .wbtn:hover{border-color:#cbd5e1;}
+  .wbtn.active{border-color:var(--left); background:#eff6ff; color:var(--left); box-shadow:0 0 0 3px rgba(37,99,235,.15);}
+  .action{
+    padding:10px 16px; border-radius:10px; border:none; cursor:pointer;
+    font-size:14px; font-weight:600; background:#334155; color:#fff; transition:.15s;
+  }
+  .action:hover{background:#1e293b;}
+  .action.ghost{background:#f1f5f9; color:#334155;}
+  .action.primary{background:var(--left); color:#fff;}
+  .action.primary:hover{background:#1d4ed8;}
+  .solve-msg{font-size:13px; color:#1e293b; background:rgba(37,99,235,.08); border:1px solid rgba(37,99,235,.25); padding:8px 14px; border-radius:10px; max-width:760px; text-align:center; line-height:1.6;}
+  .sol-note{margin-top:6px; font-size:12px; color:#64748b;}
+  .sol-list{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-top:8px;}
+  .solbtn{font-size:12px; padding:5px 11px; border:1px solid rgba(37,99,235,.35); background:#fff; color:#1e293b; border-radius:999px; cursor:pointer; transition:.15s; font-family:inherit;}
+  .solbtn:hover{background:#eff6ff; border-color:var(--left);}
+  .solbtn.active{background:var(--left); color:#fff; border-color:var(--left); box-shadow:0 0 0 3px rgba(37,99,235,.18);}
+
+  /* 舞台 */
+  .stage{
+    position:relative; width:760px; height:470px;
+    overflow:hidden;
+  }
+  /* 顶部吊绳：从天花板垂下，固定不随横梁旋转 */
+  .suspension{position:absolute; left:50%; top:0; width:3px; height:180px; transform:translateX(-50%);
+    background:linear-gradient(#94a3b8,#64748b); z-index:3;}
+  .hook{position:absolute; left:50%; top:4px; width:20px; height:20px; border-radius:50%;
+    transform:translate(-50%,-50%); background:radial-gradient(circle at 35% 30%,#94a3b8,#475569); z-index:3;}
+  /* 支点 */
+  .pivot{
+    position:absolute; left:50%; top:180px; width:26px; height:26px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #475569, #1e293b);
+    transform:translate(-50%,-50%); z-index:6; box-shadow:0 2px 6px rgba(0,0,0,.3);
+  }
+  /* 横梁 */
+  .beam{
+    position:absolute; left:50%; top:180px; width:700px; height:16px;
+    background:linear-gradient(180deg,#F8C516,var(--beam));
+    border-radius:8px; transform-origin:50% 50%; transform:translate(-50%,-50%) rotate(0deg);
+    box-shadow:0 2px 4px rgba(0,0,0,.15); z-index:4; transition:transform .45s cubic-bezier(.34,1.4,.5,1);
+  }
+  .num{
+    position:absolute; top:-30px; transform:translateX(-50%);
+    font-size:15px; font-weight:700; user-select:none; cursor:pointer;
+  }
+  .num.left{color:var(--left);}
+  .num.right{color:var(--right);}
+  .num:hover{filter:brightness(1.18); text-decoration:underline;}
+  /* 刻度点 */
+  .tick{position:absolute; top:50%; transform:translate(-50%,-50%); width:6px; height:6px; border-radius:50%; background:#b8860b;}
+  /* 棋子层（世界坐标，不随横梁旋转，绳子竖直下垂） */
+  .weights{position:absolute; inset:0; z-index:5; pointer-events:none;}
+  .string{position:absolute; width:2px; background:#475569; transform:translateX(-50%);}
+  .ball{
+    position:absolute; transform:translate(-50%,-50%); width:40px; height:40px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:16px;
+    cursor:pointer; pointer-events:auto; box-shadow:0 4px 8px rgba(0,0,0,.25); user-select:none;
+  }
+  .ball.left{background:radial-gradient(circle at 35% 30%, #60a5fa, var(--left));}
+  .ball.right{background:radial-gradient(circle at 35% 30%, #fb923c, var(--right));}
+  /* 球下方"继续加球"点击区：位于该串球最底部之下，点击即同格再挂一颗 */
+  .addbelow{
+    position:absolute; transform:translate(-50%,-50%); width:40px; height:34px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    color:#94a3b8; font-size:20px; font-weight:700; border:2px dashed #cbd5e1; background:rgba(255,255,255,.55);
+    pointer-events:auto; transition:.15s;
+  }
+  .addbelow:hover{border-color:var(--left); color:var(--left); background:#eff6ff;}
+  .addbelow.right:hover{border-color:var(--right); color:var(--right); background:#fff1e6;}
+
+  /* 底部固定条：状态 + 提示，钉在视口最底部 */
+  .footer{
+    position:fixed; left:0; right:0; bottom:0;
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+    padding:10px 12px 14px; pointer-events:none; z-index:20;
+  }
+  .footer > *{pointer-events:auto;}
+  /* 状态条 */
+  .status{
+    display:flex; gap:18px; align-items:center; flex-wrap:wrap; justify-content:center;
+    background:var(--panel); padding:12px 22px; border-radius:14px; box-shadow:0 6px 20px rgba(30,41,59,.08);
+    font-size:14px; min-height:46px;
+  }
+  .status .pill{padding:6px 12px; border-radius:999px; background:#f1f5f9; font-weight:600;}
+  .status .pill.l{color:var(--left);} .status .pill.r{color:var(--right);}
+  .badge{font-weight:700; padding:6px 14px; border-radius:999px;}
+  .badge.balanced{background:#dcfce7; color:#16a34a;}
+  .badge.tilt{background:#fef9c3; color:#a16207;}
+  .hint{font-size:12.5px; color:#64748b; max-width:760px; text-align:center; line-height:1.7;}
+</style>
+</head>
+<body>
+  <h1>⚖️ 杠杆平衡 · 交互教学 Demo</h1>
+  <div class="sub">点击刻度下的虚线 ＋ 放置第一颗，球下方的 ＋ 可连点续加多颗；点击棋子移除；选择重量档位后放置即生效。</div>
+
+  <div class="toolbar">
+    <div class="group">
+      <span class="label">放置重量</span>
+      <button class="wbtn active" data-w="1">1</button>
+      <button class="wbtn" data-w="2">2</button>
+      <button class="wbtn" data-w="3">3</button>
+      <button class="wbtn" data-w="4">4</button>
+      <button class="wbtn" data-w="5">5</button>
+    </div>
+    <button class="action ghost" id="demo">载入示例</button>
+    <button class="action" id="clear">清空</button>
+    <button class="action primary" id="solve">自动配平</button>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="suspension"></div>
+    <div class="hook"></div>
+    <div class="pivot"></div>
+    <div class="beam" id="beam"></div>
+    <div class="weights" id="weights"></div>
+  </div>
+
+  <div class="footer">
+    <div class="status" id="status"></div>
+    <div class="solve-msg" id="solveMsg">点击「自动配平」，会自动在较轻一侧补足砝码使横梁归平。</div>
+    <div class="hint">
+      原理：横梁是否水平，取决于左右两侧「力矩」是否相等。力矩 = 重量 × 到支点的格数。<br>
+      左侧总力矩 = Σ(重量 × 格数)，右侧同理。两侧相等即平衡。试着在左侧多放几颗，让天平重新水平吧。
+    </div>
+  </div>
+
+<script>
+(function(){
+  const CX = 380, CY = 180;      // 支点（舞台坐标，舞台 760×470）
+  const UNIT = 55;               // 每格像素
+  const MAX_ANGLE = 22;          // 最大倾角（度）
+  const SCALE = 25;              // 力矩→角度的饱和系数
+  const STRING_LEN = 30;         // 绳长（原 60，减半）
+  const BEAM_W = 700;
+
+  const beam = document.getElementById('beam');
+  const weightsLayer = document.getElementById('weights');
+  const statusEl = document.getElementById('status');
+
+  let activeWeight = 1;
+  // 棋子列表：每颗独立，{id, side:'L'|'R', idx:1..6, weight}
+  let balls = [];
+  let ballId = 0;
+
+  // ---- 构建横梁上的刻度、数字 ----
+  for(let i=1;i<=6;i++){
+    // 左
+    addBeamChild('num left', `-${i}`, 350 - i*UNIT, -30, i, 'L');
+    addBeamChild('tick', '', 350 - i*UNIT, 0, i, 'L');
+    // 右
+    addBeamChild('num right', `${i}`, 350 + i*UNIT, -30, i, 'R');
+    addBeamChild('tick', '', 350 + i*UNIT, 0, i, 'R');
+  }
+
+  function addBeamChild(cls, text, left, top, idx, side){
+    const el = document.createElement('div');
+    el.className = cls;
+    el.textContent = text;
+    el.style.left = left + 'px';
+    el.style.top = top + 'px';
+    if(cls.startsWith('num')||cls==='tick') el.style.transform = 'translate(-50%,-50%)';
+    beam.appendChild(el);
+  }
+
+  // ---- 重量选择 ----
+  document.querySelectorAll('.wbtn').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      document.querySelectorAll('.wbtn').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      activeWeight = parseInt(b.dataset.w,10);
+    });
+  });
+  document.getElementById('clear').addEventListener('click', ()=>{ balls=[]; lastSolve=null; render(); });
+  document.getElementById('demo').addEventListener('click', ()=>{
+    balls = [
+      {id:++ballId, side:'L', idx:1, weight:1},
+      {id:++ballId, side:'R', idx:4, weight:1},
+      {id:++ballId, side:'R', idx:6, weight:1}
+    ]; activeWeight=1; lastSolve=null;
+    document.querySelectorAll('.wbtn').forEach(x=>x.classList.toggle('active', x.dataset.w==='1'));
+    render();
+  });
+
+  // 当前"配平方案"状态（供一键切换复用）
+  let lastSolve = null;
+
+  // ---- 自动配平求解（含多种解，可一键切换） ----
+  document.getElementById('solve').addEventListener('click', ()=>{
+    const msg = document.getElementById('solveMsg');
+    if(balls.length === 0){ lastSolve=null; msg.textContent = '请先放置棋子，再来配平。'; return; }
+    const Lt = torque('L'), Rt = torque('R');
+    if(Lt === Rt){ lastSolve=null; msg.textContent = `当前已平衡（左 ${Lt} = 右 ${Rt}），无需补充。`; return; }
+    const net = Rt - Lt;                       // >0 右重→左轻，需补左
+    const targetSide = net > 0 ? 'L' : 'R';
+    const deficit = Math.abs(net);
+    const sideName = targetSide==='L' ? '左' : '右';
+    const sols = enumSolutions(deficit);
+    lastSolve = {
+      side: targetSide, sideName, deficit,
+      base: balls.slice(),                     // 求解前用户摆放的快照
+      sols, fallback: sols.length === 0
+    };
+    applySolution(0);                           // 默认采用方案 1
+  });
+
+  // 套用第 i 个方案：清空 → 重摆「原始布局 + 该补法」（完全重置语义）
+  function applySolution(i){
+    if(!lastSolve) return;
+    const { side, sideName, base, sols, deficit, fallback } = lastSolve;
+    balls = base.slice();                       // 完全重置：从用户原始布局重摆
+    const chosen = fallback ? findCombo(deficit) : sols[i];
+    const added = [];
+    for(const c of chosen){
+      balls.push({ id:++ballId, side, idx:c.p, weight:c.w });
+      added.push(sideName + '格' + c.p + '（重量' + c.w + '）');
+    }
+    render();
+    renderSolutions(i, added);
+  }
+
+  // 渲染方案列表为可点按钮；activeIdx 为当前生效方案
+  function renderSolutions(activeIdx, added){
+    const msg = document.getElementById('solveMsg');
+    const { sideName, sols, fallback } = lastSolve;
+    msg.innerHTML = '';
+    const head = document.createElement('div');
+    if(fallback){
+      head.innerHTML = `已采用贪心最优解（放置：${added.join('、')}），横梁归平。<br>差额较大，6 颗内无其他方案。`;
+    } else {
+      head.innerHTML = `已为${sideName}侧配平（采用方案 ${activeIdx+1}，放置：${added.join('、')}），横梁归平。`;
+    }
+    msg.appendChild(head);
+    if(!fallback){
+      const note = document.createElement('div');
+      note.className = 'sol-note';
+      note.textContent = `共 ${sols.length} 种可行方案，点击任一方案可一键切换：`;
+      msg.appendChild(note);
+      const wrap = document.createElement('div');
+      wrap.className = 'sol-list';
+      sols.slice(0,12).forEach((s,i)=>{
+        const parts = s.map(t => sideName + '格' + t.p + '(重' + t.w + ')');
+        const btn = document.createElement('button');
+        btn.className = 'solbtn' + (i===activeIdx ? ' active' : '');
+        btn.textContent = `方案${i+1}：${parts.join(' + ')}`;
+        btn.addEventListener('click', ()=> applySolution(i));
+        wrap.appendChild(btn);
+      });
+      msg.appendChild(wrap);
+    }
+  }
+
+  // ---- 渲染 ----
+  function torque(side){
+    let t=0;
+    for(const b of balls){
+      if(b.side===side) t += b.weight * b.idx;
+    }
+    return t;
+  }
+
+  // 枚举所有"差额力矩 D"的可行配平方案（每方案 = 一组 {重量w∈1..5, 格数p∈1..6}）
+  // 用固定顺序递归枚举，每个多重集只生成一次；限制球数(maxBalls)与解数(maxSolutions)防止爆炸
+  function enumSolutions(D, maxBalls=6, maxSolutions=12){
+    const types=[];
+    for(let p=1;p<=6;p++) for(let w=1;w<=5;w++) types.push({w,p,prod:w*p});
+    types.sort((a,b)=> b.prod-a.prod || b.w-a.w || b.p-a.p);
+    const results=[]; const chosen=[]; let nodes=0;
+    function rec(rem, start, used){
+      if(results.length>=maxSolutions || nodes++>300000) return;
+      if(rem===0){ results.push(chosen.slice()); return; }
+      if(used>=maxBalls) return;
+      for(let i=start;i<types.length;i++){
+        const t=types[i];
+        if(t.prod>rem) continue;
+        chosen.push({w:t.w,p:t.p});
+        rec(rem-t.prod, i, used+1);
+        chosen.pop();
+        if(results.length>=maxSolutions) return;
+      }
+    }
+    rec(D,0,0);
+    return results;
+  }
+
+  // 贪心：把差额拆成最少的几颗（兜底用，当枚举在 maxBalls 内无解时）
+  function findCombo(deficit){
+    const combos = [];
+    let remaining = deficit;
+    while(remaining > 0){
+      let best = null;
+      for(let p=6; p>=1; p--){
+        for(let w=5; w>=1; w--){
+          const prod = w * p;
+          if(prod <= remaining && (!best || prod > best.prod)) best = {p, w, prod};
+        }
+      }
+      if(!best) break;            // 理论上 weight1×pos1=1 总能覆盖，不会到这
+      combos.push(best);
+      remaining -= best.prod;
+    }
+    return combos;
+  }
+
+  // 在 (wx, topY) 处生成一个虚线圆圈 ＋（放置/续加）
+  function addAddBelow(wx, topY, side, idx, isFirst){
+    const add = document.createElement('div');
+    add.className = 'addbelow' + (side==='R'?' right':'');
+    add.textContent = '＋';
+    add.style.left = wx+'px'; add.style.top = topY+'px';
+    add.title = '点击在此格' + (isFirst?'放置第一颗':'再增加一颗') + '重量 ' + activeWeight + ' 的球';
+    add.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      balls.push({ id: ++ballId, side, idx, weight: activeWeight });
+      render();
+    });
+    weightsLayer.appendChild(add);
+  }
+
+  function render(){
+    const Lt = torque('L'), Rt = torque('R');
+    const net = Rt - Lt;                       // >0 右重→右沉
+    const angle = MAX_ANGLE * Math.tanh(net / SCALE);
+    beam.style.transform = `translate(-50%,-50%) rotate(${angle}deg)`;
+
+    // 清空棋子层
+    weightsLayer.innerHTML = '';
+    const rad = angle * Math.PI/180;
+    const cos = Math.cos(rad), sin = Math.sin(rad);
+
+    // 按 (side,idx) 分组
+    const groups = {};
+    for(const b of balls){
+      const key = b.side + b.idx;
+      (groups[key] = groups[key] || []).push(b);
+    }
+    const BALL_D = 40, GAP = 6;
+
+    // 遍历全部 12 个刻度位：有球→画球串+底部续加＋；无球→悬挂处画首颗＋
+    for(const side of ['L','R']){
+      for(let idx=1; idx<=6; idx++){
+        const lx = (side==='L'? -1:1) * idx * UNIT;   // 横梁局部 x（相对支点）
+        const wx = CX + lx*cos;                        // 挂载点世界坐标（ly=0）
+        const wy = CY + lx*sin;
+        const list = groups[side+idx];
+
+        if(list && list.length){
+          // 绳：从挂载点垂到最底一颗球中心
+          const str = document.createElement('div');
+          str.className='string';
+          str.style.left = wx+'px'; str.style.top = wy+'px';
+          str.style.height = (STRING_LEN + (list.length-1)*(BALL_D+GAP)) + 'px';
+          weightsLayer.appendChild(str);
+
+          // 逐颗堆叠
+          list.forEach((b,k)=>{
+            const ballY = wy + STRING_LEN + k*(BALL_D+GAP);
+            const ball = document.createElement('div');
+            ball.className = 'ball ' + (side==='L'?'left':'right');
+            ball.textContent = b.weight;
+            ball.style.left = wx+'px'; ball.style.top = ballY+'px';
+            ball.title = '点击移除（'+side+idx+'，重量 '+b.weight+'）';
+            ball.addEventListener('click', (e)=>{ e.stopPropagation(); balls = balls.filter(x=>x.id!==b.id); render(); });
+            weightsLayer.appendChild(ball);
+          });
+
+          // 球串最底部之下：续加＋（接龙式）
+          const lastBallY = wy + STRING_LEN + (list.length-1)*(BALL_D+GAP);
+          addAddBelow(wx, lastBallY + BALL_D/2 + GAP + 16, side, idx, false);
+        } else {
+          // 空位：淡绳 + 虚线＋ 在首颗球悬挂处
+          const stub = document.createElement('div');
+          stub.className='string';
+          stub.style.left = wx+'px'; stub.style.top = wy+'px';
+          stub.style.height = STRING_LEN+'px'; stub.style.opacity='0.25';
+          weightsLayer.appendChild(stub);
+          addAddBelow(wx, wy + STRING_LEN, side, idx, true);
+        }
+      }
+    }
+
+    // 状态
+    const balanced = (Lt===Rt) && (Lt>0 || balls.length>0);
+    let badge;
+    if(balanced) badge = '<span class="badge balanced">✓ 平衡</span>';
+    else if(balls.length===0) badge = '<span class="badge tilt">空天平</span>';
+    else badge = net>0
+        ? '<span class="badge tilt">右沉 ↓（右侧更重）</span>'
+        : '<span class="badge tilt">左沉 ↓（左侧更重）</span>';
+    statusEl.innerHTML =
+      `<span class="pill l">左力矩 ${Lt}</span>`+
+      `<span class="pill r">右力矩 ${Rt}</span>`+
+      badge;
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>

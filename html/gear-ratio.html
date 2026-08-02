@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>自行车齿轮比演示</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    background: #ffffff;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 1280px;
+  }
+
+  /* ===== 顶部数据区 ===== */
+  .metrics {
+    display: flex;
+    justify-content: space-around;
+    padding: 10px 0 30px;
+    gap: 20px;
+  }
+  .metric { text-align: center; flex: 1; }
+  .metric-label {
+    font-size: 16px;
+    color: #6b7280;
+    margin-bottom: 4px;
+  }
+  .metric-hint {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-left: 4px;
+  }
+  .metric-value {
+    font-size: 48px;
+    font-weight: 600;
+    font-family: "SF Mono", "Courier New", monospace;
+    letter-spacing: 2px;
+  }
+  .green  { color: #16a34a; }
+  .blue   { color: #3b82f6; }
+  .purple { color: #a855f7; }
+
+  /* ===== SVG 演示区 ===== */
+  .viz-wrap { position: relative; }
+  .viz-wrap svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  .ground {
+    height: 1px;
+    background: #d1d5db;
+    margin: 0 60px;
+  }
+
+  /* ===== 底部控制区 ===== */
+  .controls {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 30px 60px 10px;
+    gap: 30px;
+  }
+  .sliders {
+    display: flex;
+    gap: 50px;
+    flex: 1;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .slider-group {
+    text-align: center;
+    flex: 1;
+    min-width: 200px;
+    max-width: 240px;
+  }
+  .slider-value {
+    font-size: 48px;
+    font-weight: 700;
+    font-family: "SF Mono", "Courier New", monospace;
+    line-height: 1;
+  }
+  .slider-label {
+    font-size: 13px;
+    color: #6b7280;
+    margin: 8px 0 14px;
+  }
+  .slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    background: #d1d5db;
+    border-radius: 2px;
+    outline: none;
+  }
+  .slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background: #3b82f6;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 1px #cbd5e1;
+    transition: transform 0.15s;
+  }
+  .slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
+  .slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: #3b82f6;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 1px #cbd5e1;
+  }
+
+  /* ===== 操作按钮 ===== */
+  .actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  .btn:hover  { transform: scale(1.08); }
+  .btn:active { transform: scale(0.95); }
+  .btn-play {
+    background: #3b82f6;
+    color: white;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  }
+  .btn-reset {
+    background: #f3f4f6;
+    color: #6b7280;
+  }
+  .btn svg { width: 18px; height: 18px; }
+</style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- ========== 顶部数据 ========== -->
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-label">后轮圈数<span class="metric-hint">脚踏 1 圈</span></div>
+        <div class="metric-value green" id="rearRotations">3.0</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">脚踏圈数<span class="metric-hint">后轮 1 圈</span></div>
+        <div class="metric-value blue" id="pedalRotations">0.3</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">骑行距离<span class="metric-hint">m / 脚踏 1 圈</span></div>
+        <div class="metric-value purple" id="distance">6.30</div>
+      </div>
+    </div>
+
+    <!-- ========== SVG 可视化 ========== -->
+    <div class="viz-wrap">
+      <svg viewBox="0 0 1200 380" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <style>
+            .spoke        { stroke: #cbd5e1; stroke-width: 1.2; }
+            .rim          { fill: white; stroke: #1e293b; stroke-width: 7; }
+            .gear-base    { fill: white; stroke: #1e293b; stroke-width: 2; }
+            .gear-teeth   { fill: #e2e8f0; stroke: #1e293b; stroke-width: 0.8; stroke-linejoin: round; }
+            .hub          { fill: #1e293b; }
+            .crank        { fill: #94a3b8; }
+            .crank-cap    { fill: #1e293b; }
+            .red-dot      { fill: #ef4444; }
+            .chain-line   { stroke: #475569; stroke-width: 2.5;
+                            stroke-dasharray: 8 5; fill: none;
+                            stroke-linecap: round; }
+            .motion-blur  { fill: none; stroke: #cbd5e1; stroke-width: 1;
+                            stroke-dasharray: 2 4; opacity: 0.6; }
+            .gear-label   { font-size: 13px; fill: #6b7280;
+                            font-family: -apple-system, sans-serif; }
+            .teeth-tag    { font-size: 11px; fill: #475569;
+                            font-family: "SF Mono", monospace; font-weight: 600; }
+          </style>
+        </defs>
+
+        <!-- 运动模糊圈（视觉提示） -->
+        <circle class="motion-blur" id="rearMotion"  cx="350" cy="200" r="20"/>
+        <circle class="motion-blur" id="frontMotion" cx="800" cy="200" r="68"/>
+
+        <!-- 后轮：轮胎 + 辐条（后层） -->
+        <circle class="rim" cx="350" cy="200" r="120"/>
+        <g class="spoke" transform="translate(350, 200)">
+          <line x1="0"    y1="-115" x2="0"    y2="115"/>
+          <line x1="-115" y1="0"    x2="115"  y2="0"/>
+          <line x1="-81"  y1="-81"  x2="81"   y2="81"/>
+          <line x1="81"   y1="-81"  x2="-81"  y2="81"/>
+          <line x1="-50"  y1="-103" x2="50"   y2="103"/>
+          <line x1="50"   y1="-103" x2="-50"  y2="103"/>
+          <line x1="-103" y1="-50"  x2="103"  y2="50"/>
+          <line x1="103"  y1="-50"  x2="-103" y2="50"/>
+        </g>
+
+        <!-- 链条：在轮胎之上、齿轮之下（关键修复） -->
+        <line id="chainTop"    class="chain-line" x1="350" y1="184" x2="800" y2="152"/>
+        <line id="chainBottom" class="chain-line" x1="350" y1="216" x2="800" y2="248"/>
+
+        <!-- 后飞轮总成（覆盖链条中心） -->
+        <g id="rearAssembly" transform="translate(350, 200)">
+          <path   id="rearGearTeeth" class="gear-teeth" d=""/>
+          <circle id="rearGearBase"  class="gear-base"  r="16"/>
+          <circle class="hub" r="4"/>
+          <circle class="red-dot" id="rearDot" r="3" cx="12" cy="0"/>
+        </g>
+
+        <!-- 前链轮总成（覆盖链条中心） -->
+        <g id="frontAssembly" transform="translate(800, 200)">
+          <path   id="frontGearTeeth" class="gear-teeth" d=""/>
+          <circle id="frontGearBase"  class="gear-base"  r="48"/>
+          <circle class="hub" r="10"/>
+          <rect class="crank"     x="0"  y="-5" width="80" height="10" rx="2"/>
+          <rect class="crank-cap" x="75" y="-4" width="15" height="8"  rx="2"/>
+          <circle class="red-dot" id="frontDot" r="3" cx="-44" cy="0"/>
+        </g>
+
+        <!-- 标签：牙盘 / 飞轮 + 齿数小标 -->
+        <text class="gear-label" x="800" y="100" text-anchor="middle">牙盘</text>
+        <text class="teeth-tag"  id="frontTeethTag" x="800" y="135" text-anchor="middle">48T</text>
+
+        <text class="gear-label" x="350" y="345" text-anchor="middle">飞轮</text>
+        <text class="teeth-tag"  id="rearTeethTag" x="350" y="172" text-anchor="middle" fill="#16a34a">16T</text>
+
+        <!-- 地面 -->
+        <line x1="60" y1="320" x2="1140" y2="320" stroke="#d1d5db" stroke-width="1"/>
+      </svg>
+    </div>
+
+    <div class="ground"></div>
+
+    <!-- ========== 底部控制 ========== -->
+    <div class="controls">
+      <div class="sliders">
+        <div class="slider-group">
+          <div class="slider-value green" id="rearTeethDisplay">16</div>
+          <div class="slider-label">后齿轮齿数</div>
+          <input type="range" min="10" max="30" value="16" class="slider" id="rearTeeth">
+        </div>
+        <div class="slider-group">
+          <div class="slider-value blue" id="frontTeethDisplay">48</div>
+          <div class="slider-label">前齿轮齿数</div>
+          <input type="range" min="30" max="60" value="48" class="slider" id="frontTeeth">
+        </div>
+        <div class="slider-group">
+          <div class="slider-value purple" id="tireDisplay">2.10</div>
+          <div class="slider-label">轮胎周长 (m)</div>
+          <input type="range" min="1.80" max="2.40" step="0.05" value="2.10" class="slider" id="tireSize">
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-play" id="playBtn" aria-label="播放/暂停">
+          <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+        </button>
+        <button class="btn btn-reset" id="resetBtn" aria-label="重置">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // ===== 元素引用 =====
+  const rearTeethSlider   = document.getElementById('rearTeeth');
+  const frontTeethSlider  = document.getElementById('frontTeeth');
+  const tireSizeSlider    = document.getElementById('tireSize');
+  const rearTeethDisplay  = document.getElementById('rearTeethDisplay');
+  const frontTeethDisplay = document.getElementById('frontTeethDisplay');
+  const tireDisplay       = document.getElementById('tireDisplay');
+  const rearRotationsEl   = document.getElementById('rearRotations');
+  const pedalRotationsEl  = document.getElementById('pedalRotations');
+  const distanceEl        = document.getElementById('distance');
+  const playBtn           = document.getElementById('playBtn');
+  const playIcon          = document.getElementById('playIcon');
+  const resetBtn          = document.getElementById('resetBtn');
+  const rearAssembly      = document.getElementById('rearAssembly');
+  const frontAssembly     = document.getElementById('frontAssembly');
+  const chainTop          = document.getElementById('chainTop');
+  const chainBottom       = document.getElementById('chainBottom');
+  const frontTeethTag     = document.getElementById('frontTeethTag');
+  const rearTeethTag      = document.getElementById('rearTeethTag');
+
+  // ===== 常量 =====
+  const GEAR_SCALE  = 1.0;   // 每 1 齿对应的像素半径
+  const DASH_PERIOD = 13;    // 8 + 5，链条虚线周期
+  const FRONT_OMEGA = 1.5;   // 前链轮角速度（弧度/秒）
+
+  // ===== 状态 =====
+  let isPlaying      = false;
+  let animationId    = null;
+  let frontAngle     = 0;
+  let chainOffset    = 0;
+  let lastTime       = 0;
+  let currentFrontR  = 48;   // 当前前链轮半径（用于链条速度计算）
+
+  const PLAY_ICON  = '<path d="M8 5v14l11-7z"/>';
+  const PAUSE_ICON = '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
+
+  // ===== 齿牙路径生成 =====
+  // 生成 N 齿的梯形齿牙闭合路径，齿尖朝外
+  function generateGearPath(r, teeth, toothHeight = 3) {
+    const tipR      = r + toothHeight;
+    const baseR     = r;
+    const points    = [];
+    const toothFrac = 0.45;   // 齿宽占周期的 45%
+
+    for (let i = 0; i < teeth; i++) {
+      const period     = (2 * Math.PI) / teeth;
+      const startAngle = i * period - Math.PI / 2;   // 从正上方开始
+      const angles = [
+        startAngle,
+        startAngle + period * toothFrac * 0.2,
+        startAngle + period * toothFrac * 0.8,
+        startAngle + period * toothFrac,
+      ];
+      const radii = [baseR, tipR, tipR, baseR];
+
+      for (let j = 0; j < 4; j++) {
+        const x = radii[j] * Math.cos(angles[j]);
+        const y = radii[j] * Math.sin(angles[j]);
+        points.push({x, y, first: i === 0 && j === 0});
+      }
+    }
+
+    let path = '';
+    for (const p of points) {
+      path += p.first
+        ? `M ${p.x.toFixed(2)} ${p.y.toFixed(2)}`
+        : ` L ${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
+    }
+    return path + ' Z';
+  }
+
+  // ===== 视觉更新（齿轮大小 / 链条切点 / 标签） =====
+  function updateVisuals() {
+    const frontTeeth = parseInt(frontTeethSlider.value, 10);
+    const rearTeeth  = parseInt(rearTeethSlider.value, 10);
+    const rRear      = rearTeeth  * GEAR_SCALE;
+    const rFront     = frontTeeth * GEAR_SCALE;
+    currentFrontR = rFront;
+
+    // 后飞轮
+    document.getElementById('rearGearTeeth').setAttribute('d', generateGearPath(rRear, rearTeeth, 2));
+    document.getElementById('rearGearBase').setAttribute('r', rRear);
+    document.getElementById('rearDot').setAttribute('cx', rRear - 2);
+    document.getElementById('rearMotion').setAttribute('r', rRear + 5);
+    rearTeethTag.textContent = rearTeeth + 'T';
+
+    // 前链轮
+    document.getElementById('frontGearTeeth').setAttribute('d', generateGearPath(rFront, frontTeeth, 3));
+    document.getElementById('frontGearBase').setAttribute('r', rFront);
+    document.getElementById('frontDot').setAttribute('cx', -(rFront - 4));
+    document.getElementById('frontMotion').setAttribute('r', rFront + 5);
+    frontTeethTag.textContent = frontTeeth + 'T';
+
+    // 链条切点（齿轮大小变了，链条切线跟着移动）
+    chainTop.setAttribute('y1', 200 - rRear);
+    chainTop.setAttribute('y2', 200 - rFront);
+    chainBottom.setAttribute('y1', 200 + rRear);
+    chainBottom.setAttribute('y2', 200 + rFront);
+  }
+
+  // ===== 数值计算 =====
+  function updateCalculations() {
+    const frontTeeth = parseInt(frontTeethSlider.value, 10);
+    const rearTeeth  = parseInt(rearTeethSlider.value, 10);
+    const tireSize   = parseFloat(tireSizeSlider.value);
+    const ratio      = frontTeeth / rearTeeth;
+    rearRotationsEl.textContent  = ratio.toFixed(1);
+    pedalRotationsEl.textContent = (1 / ratio).toFixed(1);
+    distanceEl.textContent       = (ratio * tireSize).toFixed(2);
+  }
+
+  rearTeethSlider.addEventListener('input', () => {
+    rearTeethDisplay.textContent = rearTeethSlider.value;
+    updateCalculations();
+    updateVisuals();
+  });
+
+  frontTeethSlider.addEventListener('input', () => {
+    frontTeethDisplay.textContent = frontTeethSlider.value;
+    updateCalculations();
+    updateVisuals();
+  });
+
+  tireSizeSlider.addEventListener('input', () => {
+    tireDisplay.textContent = parseFloat(tireSizeSlider.value).toFixed(2);
+    updateCalculations();
+  });
+
+  // ===== 播放 / 暂停 =====
+  playBtn.addEventListener('click', () => {
+    isPlaying = !isPlaying;
+    if (isPlaying) {
+      lastTime    = performance.now();
+      animationId = requestAnimationFrame(animate);
+      playIcon.innerHTML = PAUSE_ICON;
+    } else {
+      cancelAnimationFrame(animationId);
+      playIcon.innerHTML = PLAY_ICON;
+    }
+  });
+
+  // ===== 重置 =====
+  resetBtn.addEventListener('click', () => {
+    isPlaying   = false;
+    frontAngle  = 0;
+    chainOffset = 0;
+    cancelAnimationFrame(animationId);
+    rearAssembly.setAttribute('transform',  'translate(350, 200) rotate(0)');
+    frontAssembly.setAttribute('transform', 'translate(800, 200) rotate(0)');
+    chainTop.setAttribute('stroke-dashoffset',    '0');
+    chainBottom.setAttribute('stroke-dashoffset', '0');
+    playIcon.innerHTML = PLAY_ICON;
+  });
+
+  // ===== 动画循环 =====
+  function animate(time) {
+    const dt = Math.min((time - lastTime) / 1000, 0.1);   // 防大跳变
+    lastTime = time;
+
+    const frontTeeth = parseInt(frontTeethSlider.value, 10);
+    const rearTeeth  = parseInt(rearTeethSlider.value, 10);
+    const ratio      = frontTeeth / rearTeeth;
+
+    // 前链轮匀速转
+    frontAngle += FRONT_OMEGA * dt;
+    if (frontAngle > Math.PI * 2) frontAngle -= Math.PI * 2;
+
+    // 后轮同向，转角比 = 齿数比
+    const rearAngle = frontAngle * ratio;
+
+    rearAssembly.setAttribute('transform',
+      `translate(350, 200) rotate(${(rearAngle  * 180 / Math.PI).toFixed(2)})`);
+    frontAssembly.setAttribute('transform',
+      `translate(800, 200) rotate(${(frontAngle * 180 / Math.PI).toFixed(2)})`);
+
+    // 链条线速度 = 前链轮角速度 × 半径（随齿轮大小自适应）
+    const chainSpeed = FRONT_OMEGA * currentFrontR;
+    chainOffset = (chainOffset + chainSpeed * dt) % DASH_PERIOD;
+    chainTop.setAttribute('stroke-dashoffset',    -chainOffset);   // 上段向右
+    chainBottom.setAttribute('stroke-dashoffset',  chainOffset);   // 下段向左
+
+    animationId = requestAnimationFrame(animate);
+  }
+
+  // 初始化
+  updateCalculations();
+  updateVisuals();
+</script>
+</body>
+</html>
